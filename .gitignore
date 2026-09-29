@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+.vite/
+
+# Raw catalogue downloads (HYG CSV etc.) — never commit, never ship to the browser
+data/raw/*
+!data/raw/.gitkeep
+
+# Generated star binaries and sky-culture JSON: rebuild with `pnpm data`
+public/data/
+
+.env*
+!.env.example

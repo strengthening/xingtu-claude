@@ -1,0 +1,127 @@
+{
+  "_about": "Reference positions produced by Stellarium 24.4 (Linux, headless via xvfb) running tests/fixtures/stellarium-ref.ssc. Observer: Shanghai 31.23N 121.47E, 4 m. az is measured from north through east. alt = apparent (Stellarium applies refraction), altGeo = geometric (airless). Star J2000 positions (epoch 2000.0) and proper-motion vectors (rad/yr) come from AT-HYG v3.2 after the epoch check in scripts/build-stars.ts (public/data/stars/names.json), bodies are computed by astronomy-engine.",
+  "observer": {
+    "latitude": 31.23,
+    "longitude": 121.47,
+    "elevation": 4
+  },
+  "stars": [
+    {
+      "name": "Sirius",
+      "hip": 32349,
+      "raJ2000": 101.287155,
+      "decJ2000": -16.716116,
+      "utc": "2026-01-15T13:00:00Z",
+      "az": 144.59547853363586,
+      "alt": 33.99925764092833,
+      "altGeo": 33.97460776862157,
+      "pmRadPerYr": [2.9298e-6, -1.1544e-6, -5.6791e-6]
+    },
+    {
+      "name": "Sirius",
+      "hip": 32349,
+      "raJ2000": 101.287155,
+      "decJ2000": -16.716116,
+      "utc": "2026-03-01T12:30:00Z",
+      "az": 188.6151782672531,
+      "alt": 41.601120954948954,
+      "altGeo": 41.58235235872353,
+      "pmRadPerYr": [2.9298e-6, -1.1544e-6, -5.6791e-6]
+    },
+    {
+      "name": "Betelgeuse",
+      "hip": 27989,
+      "raJ2000": 88.792872,
+      "decJ2000": 7.407036,
+      "utc": "2026-01-15T13:00:00Z",
+      "az": 141.55708763445801,
+      "alt": 61.02409618055859,
+      "altGeo": 61.01484246370236,
+      "pmRadPerYr": [-1.3261e-7, -3.9947e-9, 5.2211e-8]
+    },
+    {
+      "name": "Capella",
+      "hip": 24608,
+      "raJ2000": 79.172329,
+      "decJ2000": 45.997991,
+      "utc": "2026-01-15T13:00:00Z",
+      "az": 20.917908436931977,
+      "alt": 73.90426247651459,
+      "altGeo": 73.89943596810917,
+      "pmRadPerYr": [-7.9793e-8, 1.5318e-6, -1.4385e-6]
+    },
+    {
+      "name": "Vega",
+      "hip": 91262,
+      "raJ2000": 279.234735,
+      "decJ2000": 38.783692,
+      "utc": "2026-08-10T13:00:00Z",
+      "az": 22.09573306358478,
+      "alt": 81.75532629121977,
+      "altGeo": 81.75290159827709,
+      "pmRadPerYr": [8.2185e-7, 1.018e-6, 1.0864e-6]
+    },
+    {
+      "name": "Antares",
+      "hip": 80763,
+      "raJ2000": 247.351948,
+      "decJ2000": -26.431946,
+      "utc": "2026-08-10T13:00:00Z",
+      "az": 207.73069226768988,
+      "alt": 26.529243987594207,
+      "altGeo": 26.496075652999927,
+      "pmRadPerYr": [-2.6171e-8, 6.5194e-8, -1.0076e-7]
+    }
+  ],
+  "bodies": [
+    {
+      "id": "Moon",
+      "utc": "2026-01-15T13:00:00Z",
+      "az": 302.13077019434655,
+      "alt": -84.23359740155425,
+      "altGeo": -84.23359740155425
+    },
+    {
+      "id": "Jupiter",
+      "utc": "2026-01-15T13:00:00Z",
+      "az": 94.37979735809873,
+      "alt": 53.76276099160845,
+      "altGeo": 53.7505231704381
+    },
+    {
+      "id": "Saturn",
+      "utc": "2026-08-10T13:00:00Z",
+      "az": 82.46467899459861,
+      "alt": -5.837975728672714,
+      "altGeo": -5.837975728672714
+    },
+    {
+      "id": "Sun",
+      "utc": "2026-08-10T13:00:00Z",
+      "az": 310.5602901069898,
+      "alt": -26.481157348110816,
+      "altGeo": -26.481157348110816
+    },
+    {
+      "id": "Moon",
+      "utc": "2026-01-25T11:00:00Z",
+      "az": 242.5153535806094,
+      "alt": 57.79951201869618,
+      "altGeo": 57.78899176625384
+    },
+    {
+      "id": "Venus",
+      "utc": "2026-02-01T01:00:00Z",
+      "az": 125.15548014554481,
+      "alt": 19.9248792175845,
+      "altGeo": 19.87953414667242
+    },
+    {
+      "id": "Mars",
+      "utc": "2026-02-01T01:00:00Z",
+      "az": 136.10598016845105,
+      "alt": 25.350652754507518,
+      "altGeo": 25.31573661535869
+    }
+  ]
+}

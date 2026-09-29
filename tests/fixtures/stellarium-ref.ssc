@@ -1,0 +1,31 @@
+// Stellarium script that produced tests/fixtures/stellarium-ref.json.
+// Run:  copy to ~/.stellarium/scripts/ then
+//       stellarium --startup-script stellarium-ref.ssc
+//       (headless: xvfb-run -a stellarium --startup-script stellarium-ref.ssc)
+// Results are appended to ~/.stellarium/output.txt (azimuth from north via east;
+// "altitude" includes refraction, "altitude-geometric" does not).
+core.setTimeRate(0);
+core.setObserverLocation(121.47, 31.23, 4, 0, "Shanghai", "Earth");
+LandscapeMgr.setFlagAtmosphere(false);
+var cases = [
+  ["2026-01-15T13:00:00", "Sirius"],
+  ["2026-01-15T13:00:00", "Betelgeuse"],
+  ["2026-01-15T13:00:00", "Capella"],
+  ["2026-03-01T12:30:00", "Sirius"],
+  ["2026-08-10T13:00:00", "Vega"],
+  ["2026-08-10T13:00:00", "Antares"],
+  ["2026-01-15T13:00:00", "Moon"],
+  ["2026-01-15T13:00:00", "Jupiter"],
+  ["2026-08-10T13:00:00", "Saturn"],
+  ["2026-08-10T13:00:00", "Sun"],
+  ["2026-01-25T11:00:00", "Moon"],
+  ["2026-02-01T01:00:00", "Venus"],
+  ["2026-02-01T01:00:00", "Mars"]
+];
+for (var i = 0; i < cases.length; i++) {
+  core.setDate(cases[i][0], "utc");
+  core.wait(0.5);
+  var info = core.getObjectInfo(cases[i][1]);
+  core.output("REF " + cases[i][0] + " " + cases[i][1] + " az=" + info["azimuth"] + " alt=" + info["altitude"] + " altgeo=" + info["altitude-geometric"] + " ra=" + info["ra"] + " dec=" + info["dec"] + " jd=" + core.getJDay());
+}
+core.quitStellarium();
