@@ -1,12 +1,11 @@
 # Build this branch and publish it to GitHub Pages:
 #   https://<owner>.github.io/<repo>/
-# One-time setup: Settings → Pages → Source = "GitHub Actions", and allow this
-# branch in Settings → Environments → github-pages (deployment branches).
+# One-time setup: Settings → Pages → Source = "GitHub Actions".
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ai/claude-opus-5-5]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
