@@ -1,5 +1,6 @@
 import { isValidLocation } from '../astro';
 import type { App } from '../app';
+import type { ReplayController } from '../replay/ReplayController';
 import { parseTargetKey } from '../selection';
 import type { Settings } from '../state';
 import { h, showToast } from './dom';
@@ -17,7 +18,10 @@ export class UrlSync {
   private lastWrite = 0;
   private lastHash = '';
 
-  constructor(private readonly app: App) {
+  constructor(
+    private readonly app: App,
+    private readonly replay: ReplayController,
+  ) {
     this.apply(parseUrlState(location.hash), true);
     window.addEventListener('hashchange', this.onHashChange);
   }
@@ -32,7 +36,10 @@ export class UrlSync {
 
   /** Apply a parsed hash. At startup a missing time means "now" already. */
   apply(u: UrlState, startup: boolean): void {
-    const { app } = this;
+    const { app, replay } = this;
+    // the replay first: it sets its own time, place and view, which the link may then override
+    const replaying = u.replay !== undefined && replay.enter(u.replay);
+    if (!replaying && replay.active) replay.exit();
     const patch: Partial<Settings> = {};
     if (u.lat !== undefined && u.lon !== undefined) {
       const observer = { latitude: u.lat, longitude: u.lon, elevation: u.elev ?? 0 };
@@ -48,10 +55,11 @@ export class UrlSync {
 
     const clock = app.clock;
     if (u.t !== undefined) clock.setTime(u.t);
-    else if (!startup) clock.resetToNow();
+    else if (!startup && !replaying) clock.resetToNow();
     if (u.rate !== undefined && u.rate !== 0) clock.setRate(u.rate);
     else if (u.t !== undefined) clock.setRate(1);
-    clock.setPaused(u.paused ?? false);
+    if (!replaying || u.paused !== undefined) clock.setPaused(u.paused ?? false);
+    if (replaying) replay.setAutoObserver(u.auto ?? true);
 
     const view: { az?: number; alt?: number; fov?: number } = {};
     if (u.az !== undefined) view.az = u.az;
@@ -63,7 +71,7 @@ export class UrlSync {
     // turn to the object only if the link does not say where to look
     const centre = u.az === undefined && u.alt === undefined;
     if (key) app.selectByKey(key, { track: u.track ?? false, centre });
-    else if (!startup) app.select(null);
+    else if (!startup && !replaying) app.select(null);
   }
 
   /** Current state; `withTime` forces the simulated time in (for shared links). */
@@ -93,6 +101,10 @@ export class UrlSync {
     const sel = app.selectionUrlKey;
     if (sel) u.sel = sel;
     if (app.trackingForUrl) u.track = true;
+    if (this.replay.mission) {
+      u.replay = this.replay.mission.id;
+      u.auto = this.replay.autoObserver;
+    }
     return u;
   }
 

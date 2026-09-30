@@ -19,6 +19,7 @@ import {
 } from '../astro';
 import { IAU_CONSTELLATION_ZH } from '../data/constellations';
 import type { NamedStar } from '../data/names';
+import { formatTPlus, vehicleView, type VehicleId } from '../missions';
 import type { FrameContext } from '../render/context';
 import { BODY_NAMES_ZH } from '../render/layers/BodyLayer';
 import { targetEqj, targetWorld, type Target } from '../selection';
@@ -74,9 +75,16 @@ function starNames(
   return [...new Set(out)];
 }
 
+const VEHICLE_NAMES: Record<VehicleId, string> = {
+  ship: '星舰 Ship 41',
+  booster: '超重助推器 B21',
+  starlink: '星链 V3 卫星组',
+};
+
 /** Short display name (also used for the on-sky selection label). */
 export function targetTitle(t: Target, named: NamedStar | undefined, zh: boolean): string {
   if (t.kind === 'body') return zh ? BODY_NAMES_ZH[t.id] : t.id;
+  if (t.kind === 'vehicle') return VEHICLE_NAMES[t.id];
   return starNames(t, named, zh)[0] ?? `AT-HYG ${t.cat}`;
 }
 
@@ -107,6 +115,44 @@ function riseRows(rts: RiseTransitSet | null, nowMs: number): [string, string][]
 
 const tmp = new THREE.Vector3();
 
+function formatLatLon(lat: number, lon: number): string {
+  const ns = lat >= 0 ? 'N' : 'S';
+  const ew = lon >= 0 ? 'E' : 'W';
+  return `${Math.abs(lat).toFixed(2)}°${ns} ${Math.abs(lon).toFixed(2)}°${ew}`;
+}
+
+/** A replayed rocket / satellite group: where it is, how high and fast, and how it looks from here. */
+function describeVehicle(t: Extract<Target, { kind: 'vehicle' }>, ctx: FrameContext): Description {
+  const r = ctx.replay;
+  const v = vehicleView(r, t.id);
+  const title = VEHICLE_NAMES[t.id];
+  const kind = `${r?.mission.name ?? '发射回放'} · 示意性重建`;
+  if (!r || !v) {
+    const why = r ? '当前时刻不在飞行中' : '未在回放中';
+    return { title, aliases: [], kind, rows: [['状态', why]] };
+  }
+  const rows: [string, string][] = [];
+  rows.push(['任务时间', formatTPlus(r.tPlus)]);
+  rows.push(['阶段', r.phase]);
+  if (t.id === 'starlink') {
+    const n = r.vehicles.filter((x) => x.kind === 'starlink').length;
+    rows.push(['已部署', `${n} / 26 颗（示意位置为中间一颗）`]);
+  }
+  rows.push(['高度', `${v.geo.altKm.toFixed(1)} km`]);
+  rows.push(['地速', `${Math.round(v.speedKmh).toLocaleString()} km/h`]);
+  rows.push(['星下点', formatLatLon(v.geo.lat, v.geo.lon)]);
+  rows.push(['距观测者', `${Math.round(v.rangeKm).toLocaleString()} km`]);
+  const world = targetWorld(t, ctx, tmp);
+  if (world) {
+    const h = worldToAltAz([world.x, world.y, world.z]);
+    const below = h.alt < 0 ? '（在地平线下）' : '';
+    rows.push(['方位/高度', `${h.az.toFixed(1)}° / ${h.alt.toFixed(1)}°${below}`]);
+  }
+  rows.push(['光照', v.sunlit ? '阳光照射' : '地球阴影中']);
+  if (v.burning) rows.push(['发动机', '工作中']);
+  return { title, aliases: [v.name].filter((n) => n !== title), kind, rows };
+}
+
 export function describeTarget(
   t: Target,
   ctx: FrameContext,
@@ -114,6 +160,7 @@ export function describeTarget(
   rts: RiseTransitSet | null,
   nowMs: number,
 ): Description {
+  if (t.kind === 'vehicle') return describeVehicle(t, ctx);
   const zh = ctx.settings.chineseNames;
   const atm = ctx.atmosphere;
   const rows: [string, string][] = [];

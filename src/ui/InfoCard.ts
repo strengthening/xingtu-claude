@@ -102,6 +102,7 @@ export class InfoCard {
 
   /** Rise / transit / set, cached: the searches take a few ms each. */
   private riseTransitSet(t: Target, ctx: FrameContext, simMs: number): RiseTransitSet | null {
+    if (t.kind === 'vehicle') return null;
     const key = targetKey(t);
     const observer = ctx.settings.observer;
     const c = this.rts;

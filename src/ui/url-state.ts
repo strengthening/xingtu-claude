@@ -30,6 +30,10 @@ export interface UrlState {
   /** selected object: body:Moon, hip:32349 or athyg:123456, stars optionally with "@ra,dec" */
   sel?: string;
   track?: boolean;
+  /** launch replay in progress, e.g. "starship-14" */
+  replay?: string;
+  /** replay observer follows the flight (default); false = stays where it was put */
+  auto?: boolean;
 }
 
 const PROJ: Record<string, ProjectionMode> = {
@@ -90,6 +94,9 @@ export function parseUrlState(hash: string): UrlState {
   const sel = q.get('sel');
   if (sel && TARGET_KEY_RE.test(sel)) s.sel = sel;
   set('track', bool(q.get('track')));
+  const replay = q.get('replay');
+  if (replay && /^[a-z0-9-]{1,40}$/.test(replay)) s.replay = replay;
+  set('auto', bool(q.get('auto')));
   return s;
 }
 
@@ -124,6 +131,8 @@ export function formatUrlState(s: UrlState): string {
   push('mw', s.mw);
   push('sel', s.sel);
   push('track', s.track ? '1' : undefined);
+  push('replay', s.replay);
+  push('auto', s.replay && s.auto === false ? '0' : undefined);
   return parts.map(([k, v]) => `${k}=${readable(encodeURIComponent(v))}`).join('&');
 }
 
