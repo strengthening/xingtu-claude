@@ -60,6 +60,25 @@ describe('URL hash state', () => {
   });
 });
 
+describe('replay in the URL', () => {
+  it('round-trips a replay link', () => {
+    const s: UrlState = {
+      t: Date.parse('2026-09-28T12:50:00Z'),
+      replay: 'starship-14',
+      auto: false,
+    };
+    const hash = formatUrlState(s);
+    expect(hash).toContain('replay=starship-14');
+    expect(hash).toContain('auto=0');
+    expect(parseUrlState(`#${hash}`)).toEqual(s);
+  });
+
+  it('leaves out the default automatic observer and rejects odd ids', () => {
+    expect(formatUrlState({ replay: 'starship-14', auto: true })).toBe('replay=starship-14');
+    expect(parseUrlState('#replay=<script>')).toEqual({});
+  });
+});
+
 describe('selection keys', () => {
   it('parses body, HIP and AT-HYG keys', () => {
     expect(parseTargetKey('body:moon')).toEqual({ kind: 'body', id: 'Moon' });
@@ -68,11 +87,20 @@ describe('selection keys', () => {
     expect(parseTargetKey('body:Pluto')).toBeNull();
     const k = parseTargetKey('hip:13137@90,0');
     expect(k?.kind).toBe('hip');
-    const near = k && k.kind !== 'body' ? k.near : undefined;
+    const near = k && (k.kind === 'hip' || k.kind === 'athyg') ? k.near : undefined;
     expect(near?.[0]).toBeCloseTo(0, 12);
     expect(near?.[1]).toBeCloseTo(1, 12);
     expect(parseTargetKey('hip:1@10,95')).toEqual({ kind: 'hip', hip: 1 }); // bad dec ignored
     expect(parseTargetKey('hip:-4')).toBeNull();
+  });
+
+  it('parses and formats vehicle keys', () => {
+    expect(parseTargetKey('veh:ship')).toEqual({ kind: 'vehicle', id: 'ship' });
+    expect(parseTargetKey('veh:Booster')).toEqual({ kind: 'vehicle', id: 'booster' });
+    expect(parseTargetKey('veh:rover')).toBeNull();
+    expect(targetKey({ kind: 'vehicle', id: 'starlink' })).toBe('veh:starlink');
+    expect(targetUrlKey({ kind: 'vehicle', id: 'ship' })).toBe('veh:ship');
+    expect(formatTargetKey({ kind: 'vehicle', id: 'booster' })).toBe('veh:booster');
   });
 
   it('prefers HIP numbers for stars that have one', () => {

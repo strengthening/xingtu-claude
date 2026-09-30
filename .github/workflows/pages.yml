@@ -1,5 +1,8 @@
-# Build this branch and publish it to GitHub Pages:
-#   https://<owner>.github.io/<repo>/
+# Build and publish to GitHub Pages, two versions side by side:
+#   https://<owner>.github.io/<repo>/     the released version, pinned to STABLE_REF
+#   https://<owner>.github.io/<repo>/v2/  this branch (launch replay)
+# A Pages deployment replaces the whole site, so every run builds both.
+# To promote v2 later, drop the stable build and build this branch at the root.
 # One-time setup: Settings → Pages → Source = "GitHub Actions".
 name: Deploy to GitHub Pages
 
@@ -17,11 +20,20 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+env:
+  # "Deploy GitHub Pages from main": the version that was live before v2
+  STABLE_REF: 9feb47c0e1e81a197bd7a191c56b20632dd6412b
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.STABLE_REF }}
+          path: stable
 
       - uses: pnpm/action-setup@v4 # version from package.json "packageManager"
 
@@ -30,13 +42,25 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
-
       # raw catalogue downloads (~235 MB) are reused between runs
       - uses: actions/cache@v4
         with:
           path: data/raw
           key: raw-data-${{ hashFiles('scripts/fetch-data.ts') }}
+
+      # ---- stable version → site root ---------------------------------------
+      - name: Build the stable version for https://<owner>.github.io/<repo>/
+        working-directory: stable
+        run: |
+          pnpm install --frozen-lockfile
+          mkdir -p data/raw && cp -R ../data/raw/. data/raw/ 2>/dev/null || true
+          pnpm data
+          # keep what was downloaded for the cache and the v2 build
+          mkdir -p ../data/raw && cp -R data/raw/. ../data/raw/
+          pnpm exec vite build --base=/${{ github.event.repository.name }}/ --outDir ../dist --emptyOutDir
+
+      # ---- this branch → /v2/ -----------------------------------------------
+      - run: pnpm install --frozen-lockfile
 
       - name: Download and preprocess the star catalogue and sky cultures
         run: pnpm data
@@ -44,8 +68,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
 
-      - name: Build for https://<owner>.github.io/<repo>/
-        run: pnpm exec vite build --base=/${{ github.event.repository.name }}/
+      - name: Build v2 for https://<owner>.github.io/<repo>/v2/
+        run: pnpm exec vite build --base=/${{ github.event.repository.name }}/v2/ --outDir dist/v2 --emptyOutDir
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

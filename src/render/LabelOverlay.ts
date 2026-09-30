@@ -12,6 +12,7 @@ export type LabelKind =
   | 'grid-az'
   | 'figure'
   | 'mansion'
+  | 'vehicle'
   | 'selected';
 
 export interface LabelSpec {

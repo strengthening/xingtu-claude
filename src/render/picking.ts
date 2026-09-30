@@ -18,11 +18,12 @@ import {
   type Vec3,
 } from '../astro';
 import { FIELD_OFFSET, type StarChunk } from '../data/StarCatalog';
-import type { BodyTarget, StarTarget, Target } from '../selection';
+import type { BodyTarget, StarTarget, Target, VehicleTarget } from '../selection';
 import { refractWorld } from './atmosphere';
 import type { FrameContext } from './context';
 import { GROUND_Y, pxPerDegree, starRadiusPx } from './labels';
 import { bodyMarkerRadiusPx } from './layers/BodyLayer';
+import { vehicleSpritePx } from './layers/VehicleLayer';
 import { worldToScreen } from './projection';
 
 /** Slop (CSS px) around a star's drawn core / a body's disc that still counts as a hit. */
@@ -132,6 +133,23 @@ export function pickTarget(
       // inside a disc beats any star behind it; otherwise bodies win close calls
       const target: BodyTarget = { kind: 'body', id: b.id };
       consider(d <= r ? -1000 + d / Math.max(r, 1) : d - r - 6, target);
+    }
+  }
+
+  // ---- replayed vehicles: the reason to be looking, so they beat anything near them
+  if (ctx.replay) {
+    for (const v of ctx.replay.vehicles) {
+      w.set(v.world[0], v.world[1], v.world[2]);
+      refractWorld(w, atm);
+      if (w.y < hideBelow) continue;
+      const p = worldToScreen(w, ctx.camera, ctx.projection, ctx.width, ctx.height);
+      if (!p) continue;
+      const r = (vehicleSpritePx(v) * settings.starScale) / 2;
+      const d = Math.hypot(p[0] - sx, p[1] - sy);
+      if (d > r + BODY_SLOP_PX) continue;
+      const id = v.kind === 'starlink' ? 'starlink' : v.kind;
+      const target: VehicleTarget = { kind: 'vehicle', id };
+      consider(-2000 + d, target);
     }
   }
 

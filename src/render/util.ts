@@ -48,5 +48,7 @@ export const ORDER = {
   figures: 12,
   stars: 20,
   bodies: 30,
+  /** Replayed rockets / satellites: nearer than the sky, still hidden by the ground. */
+  vehicles: 32,
   ground: 40,
 } as const;

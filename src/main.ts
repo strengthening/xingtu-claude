@@ -1,7 +1,9 @@
 import './styles.css';
 import { App } from './app';
+import { ReplayController } from './replay/ReplayController';
 import { ControlPanel } from './ui/ControlPanel';
 import { InfoCard } from './ui/InfoCard';
+import { ReplayPanel } from './ui/ReplayPanel';
 import { StatusBar } from './ui/StatusBar';
 import { UrlSync } from './ui/UrlSync';
 
@@ -60,13 +62,26 @@ panel.addToggle(
 );
 const status = new StatusBar(app);
 const card = new InfoCard(app);
-const url = new UrlSync(app);
+const replay = new ReplayController(app);
+const replayPanel = new ReplayPanel(app, replay);
+const url = new UrlSync(app, replay);
 panel.addHeaderButton('分享', '复制链接：当前地点、时间、视角和选中的天体', () => {
   void url.copyShareUrl();
 });
+const replayBtn = panel.addHeaderButton('回放', '发射回放：在星空中重演一次火箭发射', () =>
+  replayPanel.toggleMenu(replayBtn),
+);
+replayBtn.classList.add('replay-toggle');
+const syncReplayBtn = (): void => {
+  replayBtn.textContent = replay.active ? '退出回放' : '回放';
+  replayBtn.classList.toggle('active', replay.active);
+};
+replay.onChange(syncReplayBtn);
+syncReplayBtn();
 // the card comes first so an expanded panel covers it on narrow screens
-ui.append(card.el, panel.el, status.el);
+ui.append(card.el, panel.el, status.el, replayPanel.el, replayPanel.menu);
 app.onFrame((ctx) => {
+  replayPanel.update();
   panel.update();
   status.update(ctx);
   card.update(ctx);
@@ -74,6 +89,9 @@ app.onFrame((ctx) => {
 });
 
 void app.start();
+
+// the replay moves the observer; don't leave it at sea in the saved settings when the page closes
+window.addEventListener('pagehide', () => replay.exit());
 
 // keep the status bar clear of the footer credits, whose height depends on what is credited
 const credits = document.getElementById('credits');
@@ -96,6 +114,7 @@ window.xingtu = app;
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     card.dispose();
+    replayPanel.dispose();
     url.dispose();
     creditsObserver?.disconnect();
     app.dispose();

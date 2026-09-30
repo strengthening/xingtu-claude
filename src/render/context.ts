@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { BodyState, SkyBrightness, SkyFrames, Vec3 } from '../astro';
+import type { ReplayFrame } from '../missions';
 import type { Settings } from '../state';
 import type { ProjectionState } from './projection';
 
@@ -11,6 +12,8 @@ export interface FrameContext {
   /** Earth velocity / c (annual aberration), J2000 frame. */
   beta: Vec3;
   bodies: readonly BodyState[];
+  /** Launch replay in progress (vehicles in this observer's sky), else null. */
+  replay: ReplayFrame | null;
   /** J2000 → world, as a Three.js matrix (shared by stars, bodies, labels). */
   eqjToWorld: THREE.Matrix4;
   /** Equator of date → world (equatorial grid). */

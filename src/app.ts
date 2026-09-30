@@ -24,6 +24,7 @@ import {
 import { StarDataMissingError } from './data/manifest';
 import { loadNamedStars, type NamedStar } from './data/names';
 import { FIELD_OFFSET, StarCatalog, type StarChunk } from './data/StarCatalog';
+import { computeReplayFrame, vehicleView, type Mission, type ReplayFrame } from './missions';
 import type { FrameContext } from './render/context';
 import { LabelOverlay } from './render/LabelOverlay';
 import {
@@ -32,6 +33,7 @@ import {
   addFigureLabels,
   addGridLabels,
   addStarLabels,
+  addVehicleLabels,
   pxPerDegree,
   starRadiusPx,
 } from './render/labels';
@@ -43,6 +45,7 @@ import { HipsLayer } from './render/layers/HipsLayer';
 import { BodyLayer } from './render/layers/BodyLayer';
 import { HorizonLayer } from './render/layers/HorizonLayer';
 import { StarLayer } from './render/layers/StarLayer';
+import { VehicleLayer, vehicleSpritePx } from './render/layers/VehicleLayer';
 import { SkyRenderer } from './render/SkyRenderer';
 import { updateApparentUniforms } from './render/apparent';
 import { updateAtmosphereUniforms } from './render/atmosphere';
@@ -73,10 +76,13 @@ export class App {
   readonly figures = new ConstellationLayer();
   readonly stars = new StarLayer();
   readonly bodies = new BodyLayer();
+  readonly vehicles = new VehicleLayer();
   readonly labels: LabelOverlay;
   catalog: StarCatalog | undefined;
   namedStars: NamedStar[] = [];
   catalogError: unknown;
+  /** Launch being replayed (set by the ReplayController), drawn in the observer's sky. */
+  mission: Mission | null = null;
 
   /** Clicked object shown in the info card, and whether the view follows it. */
   selection: Target | null = null;
@@ -122,6 +128,7 @@ export class App {
     this.sky.add(this.figures);
     this.sky.add(this.stars);
     this.sky.add(this.bodies);
+    this.sky.add(this.vehicles);
   }
 
   async start(): Promise<void> {
@@ -175,8 +182,8 @@ export class App {
    * `centre` turns the view to the star when it resolves (the URL had no view).
    */
   selectByKey(key: TargetKey, opts: { track?: boolean; centre?: boolean } = {}): void {
-    if (key.kind === 'body') {
-      this.select({ kind: 'body', id: key.id }, { track: opts.track ?? false });
+    if (key.kind === 'body' || key.kind === 'vehicle') {
+      this.select(key, { track: opts.track ?? false });
       if (opts.centre) this.centreOnSelection();
       return;
     }
@@ -192,7 +199,7 @@ export class App {
 
   private requestPending(): void {
     const p = this.pending;
-    if (!p || p.key.kind === 'body' || !this.catalog) return;
+    if (!p || p.key.kind === 'body' || p.key.kind === 'vehicle' || !this.catalog) return;
     this.resolvePending(this.catalog.chunks());
     if (!this.pending) return;
     const k = p.key;
@@ -204,7 +211,7 @@ export class App {
 
   private resolvePending(chunks: Iterable<StarChunk>): void {
     const p = this.pending;
-    if (!p || p.key.kind === 'body') return;
+    if (!p || p.key.kind === 'body' || p.key.kind === 'vehicle') return;
     for (const chunk of chunks) {
       const t = findStar(chunk, p.key);
       if (t) {
@@ -288,15 +295,19 @@ export class App {
     const beta = aberrationBeta(time);
     updateApparentUniforms(years, beta);
     const bodies: BodyState[] = computeBodies(time, settings.observer);
+    const replay: ReplayFrame | null = this.mission
+      ? computeReplayFrame(this.mission, this.clock.now(), settings.observer)
+      : null;
     mat3ToMatrix4(frames.eqjToWorld, this.eqjToWorld);
     mat3ToMatrix4(frames.eqdToWorld, this.eqdToWorld);
     if (this.tracking && this.selection) {
       // follow before anything reads the camera, so labels and stars agree this frame
       const w = targetWorld(
         this.selection,
-        { eqjToWorld: this.eqjToWorld, years, beta, bodies, atmosphere: atmOn },
+        { eqjToWorld: this.eqjToWorld, years, beta, bodies, atmosphere: atmOn, replay },
         this.trackWorld,
       );
+      if (w && this.selection.kind === 'vehicle') keepAboveHorizon(w);
       if (w) this.view.lookAt(w);
     }
 
@@ -345,6 +356,7 @@ export class App {
       years,
       beta,
       bodies,
+      replay,
       eqjToWorld: this.eqjToWorld,
       eqdToWorld: this.eqdToWorld,
       sunWorld: this.sunWorld,
@@ -384,6 +396,7 @@ export class App {
     addStarLabels(this.labels, ctx, this.namedStars);
     addGridLabels(this.labels, ctx);
     addFigureLabels(this.labels, ctx, this.figures.active);
+    addVehicleLabels(this.labels, ctx);
     this.placeMarker(ctx);
     this.labels.end(ctx.camera, ctx.projection, ctx.width, ctx.height);
   }
@@ -401,6 +414,9 @@ export class App {
     if (t.kind === 'body') {
       const b = ctx.bodies.find((x) => x.id === t.id);
       r = b ? bodyMarkerRadiusPx(b, pxPerDegree(ctx)) : 6;
+    } else if (t.kind === 'vehicle') {
+      const v = vehicleView(ctx.replay, t.id);
+      r = v ? (vehicleSpritePx(v) * ctx.settings.starScale) / 2 : 6;
     } else {
       const eff = Math.min(effectiveMagnitude(ctx, t.mag, w), ctx.limMag);
       r = starRadiusPx(eff, ctx.limMag, ctx.settings.starScale);
@@ -439,8 +455,24 @@ export class App {
   }
 }
 
+/**
+ * A tracked vehicle below the horizon (not yet risen, or set) is followed
+ * along the horizon a little above it, so the view shows sky rather than ground.
+ */
+const MIN_TRACK_ALT = Math.sin(8 * (Math.PI / 180));
+function keepAboveHorizon(w: THREE.Vector3): void {
+  w.normalize();
+  if (w.y >= MIN_TRACK_ALT) return;
+  const h = Math.hypot(w.x, w.z) || 1;
+  const c = Math.sqrt(1 - MIN_TRACK_ALT ** 2);
+  w.set((w.x / h) * c, MIN_TRACK_ALT, (w.z / h) * c);
+}
+
 /** Find a star by HIP / AT-HYG id in a loaded chunk. */
-function findStar(chunk: StarChunk, key: Exclude<TargetKey, { kind: 'body' }>): StarTarget | null {
+function findStar(
+  chunk: StarChunk,
+  key: Extract<TargetKey, { kind: 'hip' | 'athyg' }>,
+): StarTarget | null {
   const field = key.kind === 'hip' ? FIELD_OFFSET.hip : FIELD_OFFSET.cat;
   const want = key.kind === 'hip' ? key.hip : key.cat;
   const { data, stride, count } = chunk;

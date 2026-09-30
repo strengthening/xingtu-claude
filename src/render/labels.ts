@@ -13,6 +13,7 @@ import { figureColor, type SkyCulture } from '../data/skyculture';
 import type { FrameContext } from './context';
 import type { LabelOverlay } from './LabelOverlay';
 import { BODY_NAMES_ZH, bodyMarkerRadiusPx } from './layers/BodyLayer';
+import { vehicleSpritePx } from './layers/VehicleLayer';
 
 /** Altitude (as world y = sin alt) below which labels are hidden behind opaque ground. */
 export const GROUND_Y = Math.sin(-0.3 * DEG);
@@ -216,6 +217,44 @@ export function addFigureLabels(
       anchor: 'center',
       color: `#${hex}`,
       opacity: f.mansion ? 0.95 : 0.7,
+    });
+  }
+}
+
+const vehicleWorld = new Map<string, THREE.Vector3>();
+
+/**
+ * Replayed vehicles: ship and booster by name and height; the satellites get
+ * one label for the whole group (at its middle satellite).
+ */
+export function addVehicleLabels(overlay: LabelOverlay, ctx: FrameContext): void {
+  const r = ctx.replay;
+  if (!r) return;
+  const sats = r.vehicles.filter((v) => v.kind === 'starlink');
+  const lead = sats[Math.floor((sats.length - 1) / 2)];
+  for (const v of r.vehicles) {
+    if (v.kind === 'starlink' && v !== lead) continue;
+    let world = vehicleWorld.get(v.id);
+    if (!world) {
+      world = new THREE.Vector3();
+      vehicleWorld.set(v.id, world);
+    }
+    world.set(v.world[0], v.world[1], v.world[2]);
+    refractWorld(world, ctx.atmosphere);
+    if (ctx.settings.showGround && world.y < GROUND_Y) continue;
+    const text =
+      v.kind === 'starlink'
+        ? `星链 V3 ×${sats.length}`
+        : `${v.name} · ${Math.round(v.geo.altKm)} km`;
+    const rad = (vehicleSpritePx(v) * ctx.settings.starScale) / 2;
+    overlay.add({
+      id: `vehicle-${v.kind === 'starlink' ? 'starlink' : v.id}`,
+      text,
+      world,
+      kind: 'vehicle',
+      priority: v.kind === 'ship' ? 0.5 : 1.5,
+      dx: rad + 4,
+      dy: -rad - 3,
     });
   }
 }
